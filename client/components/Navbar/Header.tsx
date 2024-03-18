@@ -1,5 +1,5 @@
 "use client";
-
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
@@ -172,7 +172,8 @@ const Header = () => {
   );
 };
 
-export default Header;
+// export default Header;
+export default dynamic(() => Promise.resolve(Header), { ssr: false });
 
 // #09334E
 // #07273B
