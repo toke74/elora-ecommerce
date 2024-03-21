@@ -1,6 +1,8 @@
 import express, { NextFunction, Request, Response } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import ErrorHandlerMiddleware from "./middleware/error";
+import userRouter from "./routes/user.route";
 
 require("dotenv").config();
 const { ORIGIN } = process.env;
@@ -19,6 +21,9 @@ app.use(
   })
 );
 
+//routes
+app.use("/api/v1/user", userRouter);
+
 //testing route
 app.get("/test", (req: Request, res: Response, next: NextFunction) => {
   return res.status(200).json({
@@ -33,3 +38,6 @@ app.all("*", (req: Request, res: Response, next: NextFunction) => {
   err.statusCode = 404;
   next(err);
 });
+
+// it's for ErrorHandling
+app.use(ErrorHandlerMiddleware);
