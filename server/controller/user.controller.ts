@@ -10,6 +10,7 @@ import sendEmail from "../utils/sendEmail";
 import { sendToken } from "../utils/jwt";
 import { IGetUserAuthInfoRequest } from "../@types/custom";
 import { redis } from "../utils/redis";
+import { getUserById } from "../services/user.service";
 
 require("dotenv").config();
 
@@ -30,6 +31,16 @@ interface IActivateUser {
 interface ILoginUser {
   email: string;
   password: string;
+}
+
+//Social auth interface
+interface ISocialAuth {
+  email: string;
+  name: string;
+  avatar?: {
+    public_id: string;
+    url: string;
+  };
 }
 
 // @desc    Register user
@@ -202,5 +213,82 @@ export const logoutUser = asyncErrorHandler(
       success: true,
       message: "Logged out successfully",
     });
+  }
+);
+
+// @desc    Update Access Token
+// @route   GET /api/v1/user/refreshToken
+// @access  Public
+export const updateAccessToken = asyncErrorHandler(
+  async (req: IGetUserAuthInfoRequest, res: Response, next: NextFunction) => {
+    const refresh_token = req.cookies.refresh_token as string;
+
+    const message = "Could not refresh token";
+
+    if (!refresh_token) {
+      return next(new ErrorHandler(message, 400));
+    }
+
+    const decoded = jwt.verify(
+      refresh_token,
+      process.env.REFRESH_TOKEN as string
+    ) as JwtPayload;
+
+    if (!decoded) {
+      return next(new ErrorHandler(message, 400));
+    }
+
+    const session = await redis.get(decoded.id);
+
+    if (!session) {
+      return next(new ErrorHandler(message, 400));
+    }
+
+    const user = JSON.parse(session);
+
+    req.user = user;
+
+    //import methods to generate access Token and refresh token
+    sendToken(user, 200, res);
+  }
+);
+
+// @desc    Get User Info
+// @route   GET /api/v1/user/user-info
+// @access  Private
+export const getUserInfo = asyncErrorHandler(
+  async (req: IGetUserAuthInfoRequest, res: Response, next: NextFunction) => {
+    const userId = req.user._id;
+    console.log(userId);
+    getUserById(userId, res);
+  }
+);
+
+// @desc    Social Auth
+// @route   POST /api/v1/user/social-auth
+// @access  Public
+export const socialAuth = asyncErrorHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { email, name, avatar } = req.body as ISocialAuth;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      const generatePassword =
+        Math.random().toString(36).slice(-8) +
+        Math.random().toString(36).slice(-8);
+
+      const newUser = await User.create({
+        email,
+        name,
+        password: generatePassword,
+        avatar,
+        isVerified: true,
+      });
+
+      sendToken(newUser, 200, res);
+    } else {
+      sendToken(user, 200, res);
+    }
   }
 );

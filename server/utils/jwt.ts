@@ -1,4 +1,5 @@
 import { Response } from "express";
+import jwt from "jsonwebtoken";
 
 import { IUser } from "../model/user.model";
 import { redis } from "./redis";
@@ -46,8 +47,24 @@ export const sendToken = async (
   res: Response
 ) => {
   try {
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    const accessToken = jwt.sign(
+      { id: user._id },
+      process.env.ACCESS_TOKEN as string,
+      {
+        expiresIn: "5m",
+      }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.REFRESH_TOKEN as string,
+      {
+        expiresIn: "30d",
+      }
+    );
+
+    // const accessToken = user.generateAccessToken();
+    // const refreshToken = user.generateRefreshToken();
 
     //upload session to redis if user not exist
     if (!(await redis.get(user._id))) {
